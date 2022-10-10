@@ -6,18 +6,23 @@ const ejs = require("ejs");
 const mongoose = require("mongoose");
 // livello 2
 // var encrypt = require('mongoose-encryption');
-
 // livello 3
-const md5 = require("md5");
-
+// const md5 = require("md5");
+// livello 4
+const bcrypt = require('bcrypt');
 
 const app = express();
+
+// livello 4
+const saltRounds = 10;
 
 // console.log(process.env.API_KEY);
 
 app.use(express.static("public"));
 app.set('view engine', 'ejs');
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({
+    extended: true
+}));
 
 mongoose.connect("mongodb://localhost:27017/userDB1");
 
@@ -28,7 +33,7 @@ mongoose.connect("mongodb://localhost:27017/userDB1");
 // };
 
 // mongoose encryption
-const userSchema = new mongoose.Schema ({
+const userSchema = new mongoose.Schema({
     email: String,
     password: String
 });
@@ -40,54 +45,67 @@ const userSchema = new mongoose.Schema ({
 
 const User = new mongoose.model("User", userSchema);
 
-app.get("/", function(req, res){
+app.get("/", function(req, res) {
     res.render("home");
 });
 
-app.get("/login", function(req, res){
+app.get("/login", function(req, res) {
     res.render("login");
 });
 
-app.get("/register", function(req, res){
+app.get("/register", function(req, res) {
     res.render("register");
 });
 
-app.post("/register", function(req, res){
-    const newUser = new User({
-        email: req.body.username,
-// livello 2
-        // password: req.body.password
+app.post("/register", function(req, res) {
+    // livello 4
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
 
-// livello 3
-        password: md5(req.body.password)
-
-
+        const newUser = new User({
+            email: req.body.username,
+            // livello 2
+            // password: req.body.password
+            // livello 3
+            // password: md5(req.body.password)
+            // livello4
+            password: hash
+        });
+        newUser.save(function(err) {
+            if (err) {
+                console.log(err);
+            } else {
+                res.render("secrets");
+            }
+        });
     });
-    newUser.save(function(err){
-        if (err){
-            console.log(err);
-        }else{
-            res.render("secrets");
-        }
-    });
+
 });
 
-app.post("/login", function(req, res){
+app.post("/login", function(req, res) {
     const username = req.body.username;
-// livello 2
+    // livello 2
     // const password = req.body.password;
+    // livello 3
+    // const password = md5(req.body.password);
+    // livello 4
+    const password = req.body.password;
 
-// livello 3
-    const password = md5(req.body.password);
-
-    User.findOne({email: username}, function(err, foundUser){
-        if (err){
+    User.findOne({
+        email: username
+    }, function(err, foundUser) {
+        if (err) {
             console.log(err);
-        }else{
-            if (foundUser){
-                if (foundUser.password === password){
-                    res.render("secrets");
-                }
+        } else {
+            if (foundUser) {
+                // PRElivello 4
+                // if (foundUser.password === password) {
+                // livello 4
+                bcrypt.compare(password, foundUser.password, function(err, result) {
+                    if (result === true) {
+                        res.render("secrets");
+                    }
+                });
+
             }
         }
     })
@@ -95,6 +113,6 @@ app.post("/login", function(req, res){
 
 
 
-app.listen(3000, function(){
+app.listen(3000, function() {
     console.log("server started on port 3000");
 });
